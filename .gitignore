@@ -1,0 +1,5 @@
+.env
+node_modules
+followers.txt
+working.js
+song.txt
