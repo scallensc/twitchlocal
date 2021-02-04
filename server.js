@@ -15,6 +15,8 @@ const http = require('http').Server(app);
 const io2 = require('socket.io')(http);
 const atob = require('atob');
 
+const _ = require('lodash');
+
 // Timestamp console logs
 require('console-stamp')(console, { pattern: 'dd/mm/yyyy HH:MM:ss' });
 
@@ -83,7 +85,7 @@ function listen(topic) {
   console.log('WS. SENT: ' + 'listening to: ' + topic);
   ws.send(JSON.stringify(message));
 }
-
+const socket = io('ws://localhost:3002');
 // Websocket connector -> Twitch
 async function connect() {
   const heartbeatInterval = 1000 * 60; //ms between PING's
@@ -276,6 +278,11 @@ app.get(`/song`, (req, res) => {
   });
 });
 
+app.post(`/prizeupdate`, (req, res) => {
+  let payload = req.body;
+  socket.emit('payload', payload);
+});
+
 // ROCKET LEAGUE STUFF
 
 // Variables to hold information about players and score
@@ -302,6 +309,129 @@ let streamcolour = 'purple';
 // Activate default lighting on server start
 lights.keylight.light_on();
 lights.rgbstrip.trigger(streamcolour);
+
+async function streamelements() {
+  let JWT = process.env.STREAMELEMENTS_TOKEN;
+  const sesocket = io('https://realtime.streamelements.com', {
+    transports: ['websocket'],
+  });
+  // Socket connected
+  sesocket.on('connect', onConnect);
+
+  // Socket got disconnected
+  sesocket.on('disconnect', onDisconnect);
+
+  // Socket is authenticated
+  sesocket.on('authenticated', onAuthenticated);
+
+  sesocket.on('event:test', (data) => {
+    // console.log(data);
+    if (data.listener == 'tip-points') {
+      let payload;
+      switch (data.event.message.toLowerCase()) {
+        case '1':
+        case '1st':
+        case 'first':
+          payload = {
+            type: 'donation',
+            data: {
+              from: data.event.name,
+              place: 'first',
+              amount: data.event.amount,
+            },
+          };
+          sendIt(payload);
+          break;
+        case '2':
+        case '2nd':
+        case 'second':
+          payload = {
+            type: 'donation',
+            data: {
+              from: data.event.name,
+              place: 'second',
+              amount: data.event.amount,
+            },
+          };
+          sendIt(payload);
+          break;
+        case '3':
+        case '3rd':
+        case 'third':
+          payload = {
+            type: 'donation',
+            data: {
+              from: data.event.name,
+              place: 'third',
+              amount: data.event.amount,
+            },
+          };
+          sendIt(payload);
+          break;
+        default:
+          console.log(data.event);
+      }
+      async function sendIt(payload) {
+        socket.emit('payload', payload);
+        let remote = await axios.get(
+          `${process.env.TWITCH_CALLBACK}/prizepool`
+        );
+        oldstate = remote.data;
+        newstate = {
+          data: {
+            ...oldstate['0'].prize,
+            [payload.data.place]: (
+              parseFloat(oldstate['0'].prize[payload.data.place]) +
+              payload.data.amount
+            ).toFixed(2),
+          },
+        };
+        console.log(newstate);
+        const reply = await axios.post(
+          `${process.env.TWITCH_CALLBACK}/prizepool`,
+          newstate
+        );
+        if (reply.error) {
+          console.log('error');
+        } else {
+          console.log('donation payment sent to DB prizepool');
+        }
+      }
+    }
+    // Structure as on JSON Schema
+  });
+  sesocket.on('event', (data) => {
+    console.log(data);
+    // Structure as on JSON Schema
+  });
+  sesocket.on('event:update', (data) => {
+    console.log(data);
+    // Structure as on https://github.com/StreamElements/widgets/blob/master/CustomCode.md#on-session-update
+  });
+  sesocket.on('event:reset', (data) => {
+    console.log(data);
+    // Structure as on https://github.com/StreamElements/widgets/blob/master/CustomCode.md#on-session-update
+  });
+
+  function onConnect() {
+    console.log('Successfully connected to the websocket');
+    sesocket.emit('authenticate', {
+      method: 'jwt',
+      token: JWT,
+    });
+  }
+
+  function onDisconnect() {
+    console.log('Disconnected from websocket');
+    // Reconnect
+  }
+
+  function onAuthenticated(data) {
+    const { channelId } = data;
+
+    console.log(`Successfully connected to channel ${channelId}`);
+  }
+}
 
 function sos() {
   let RlHost = 'ws://10.0.0.23:49122';
@@ -343,6 +473,10 @@ function sos() {
 
     socket.on('updateTournament', (tournament) => {
       socket.to(socket._id).emit('tournament', tournament);
+    });
+
+    socket.on('payload', (payload) => {
+      socket.to('REACTLOCAL').emit('payload', payload);
     });
   });
 
@@ -405,9 +539,9 @@ function sos() {
 }
 
 function rocketleague() {
-  const socket = io('ws://localhost:3002');
   socket.emit('join', 'TWITCHLOCAL');
   socket.emit('watchGame');
+
   socket.on('update', (response) => {
     let data = JSON.parse(response);
 
@@ -528,6 +662,7 @@ pubsub_engage(); // -> Call twitch pubsub function
 // Initialise websocket connection
 sos(); // -> Call SOS socket server logic
 rocketleague(); // -> Call connection to SOS socket
+streamelements(); // -> Call connection to streamelements
 
 // Kill server, make sure NGROK shuts down on SIGINT
 process.on('SIGINT', async function () {
