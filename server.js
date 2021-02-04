@@ -85,7 +85,7 @@ function listen(topic) {
   console.log('WS. SENT: ' + 'listening to: ' + topic);
   ws.send(JSON.stringify(message));
 }
-const socket = io('ws://localhost:3002');
+
 // Websocket connector -> Twitch
 async function connect() {
   const heartbeatInterval = 1000 * 60; //ms between PING's
@@ -280,7 +280,7 @@ app.get(`/song`, (req, res) => {
 
 app.post(`/prizeupdate`, (req, res) => {
   let payload = req.body;
-  socket.emit('payload', payload);
+  rlsocket.emit('payload', payload);
 });
 
 // ROCKET LEAGUE STUFF
@@ -325,19 +325,22 @@ async function streamelements() {
   sesocket.on('authenticated', onAuthenticated);
 
   sesocket.on('event:test', (data) => {
-    // console.log(data);
-    if (data.listener == 'tip-points') {
+    console.log(data);
+    // Structure as on JSON Schema
+  });
+  sesocket.on('event', (data) => {
+    if (data.type === 'tip') {
       let payload;
-      switch (data.event.message.toLowerCase()) {
+      switch (data.data.message.toLowerCase()) {
         case '1':
         case '1st':
         case 'first':
           payload = {
             type: 'donation',
             data: {
-              from: data.event.name,
+              from: data.data.username,
               place: 'first',
-              amount: data.event.amount,
+              amount: data.data.amount,
             },
           };
           sendIt(payload);
@@ -348,9 +351,9 @@ async function streamelements() {
           payload = {
             type: 'donation',
             data: {
-              from: data.event.name,
+              from: data.data.username,
               place: 'second',
-              amount: data.event.amount,
+              amount: data.data.amount,
             },
           };
           sendIt(payload);
@@ -361,18 +364,18 @@ async function streamelements() {
           payload = {
             type: 'donation',
             data: {
-              from: data.event.name,
+              from: data.data.username,
               place: 'third',
-              amount: data.event.amount,
+              amount: data.data.amount,
             },
           };
           sendIt(payload);
           break;
         default:
-          console.log(data.event);
+          console.log(data.data);
       }
       async function sendIt(payload) {
-        socket.emit('payload', payload);
+        rlsocket.emit('payload', payload);
         let remote = await axios.get(
           `${process.env.TWITCH_CALLBACK}/prizepool`
         );
@@ -398,9 +401,6 @@ async function streamelements() {
         }
       }
     }
-    // Structure as on JSON Schema
-  });
-  sesocket.on('event', (data) => {
     console.log(data);
     // Structure as on JSON Schema
   });
@@ -538,11 +538,12 @@ function sos() {
   };
 }
 
+const rlsocket = io('ws://localhost:3002');
 function rocketleague() {
-  socket.emit('join', 'TWITCHLOCAL');
-  socket.emit('watchGame');
+  rlsocket.emit('join', 'TWITCHLOCAL');
+  rlsocket.emit('watchGame');
 
-  socket.on('update', (response) => {
+  rlsocket.on('update', (response) => {
     let data = JSON.parse(response);
 
     let event = data.event;
