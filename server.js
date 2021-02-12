@@ -10,6 +10,8 @@ const ora = require('ora');
 const axios = require('axios');
 const WebSocket = require('ws');
 
+const AUTH_TOKEN = process.env.AUTH_TOKEN;
+
 // Socket IO instance for CONNECTIONS
 const io = require('socket.io-client');
 
@@ -129,7 +131,11 @@ async function connect() {
         `channel-bits-events-v1.${process.env.TWITCH_CHANNEL_ID}`
     ) {
       console.log(chalk.magenta('triggering purple strobe for bits event'));
-      axios.get(`${process.env.NGROK_LOCAL}/newfollow`);
+      axios.get(`${process.env.NGROK_LOCAL}/newfollow`, {
+        headers: {
+          Authorization: process.env.AUTH_TOKEN,
+        },
+      });
     }
 
     // On WS message from sub events, fire purple strobe effect
@@ -141,7 +147,11 @@ async function connect() {
       console.log(
         chalk.magenta('triggering purple strobe for subscription event')
       );
-      axios.get(`${process.env.NGROK_LOCAL}/newfollow`);
+      axios.get(`${process.env.NGROK_LOCAL}/newfollow`, {
+        headers: {
+          Authorization: process.env.AUTH_TOKEN,
+        },
+      });
     }
 
     // On WS message from channel point redemption for light changes, trigger light change function and pass value
@@ -217,22 +227,40 @@ app.use(function (req, res, next) {
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept'
   );
+  res.header('Authorization', process.env.AUTH_TOKEN);
   next();
 });
 
 // GET Route for new twitch follower -> Twitch
 app.get('/newfollow', (req, res) => {
   const spinner = ora(`Processing twitch request... \n`).start();
-  setTimeout(() => {
+  if (
+    req.headers.authorization !== process.env.AUTH_TOKEN ||
+    !req.headers.authorization
+  ) {
+    console.log(req.headers);
     spinner.stopAndPersist({
-      symbol: '✓',
-      text: chalk.green('200 OK!'),
+      symbol: 'X',
+      text: chalk.red('401 Unauthorised!'),
     });
-    console.log(chalk.magenta(`New follower!`));
-    console.log(chalk.magenta(`purplestrobe executed on RGB`));
-    lights.rgbstrip.strobe('purple', streamcolour);
-    res.sendStatus(200);
-  }, 400);
+    res.sendStatus(401);
+  } else {
+    console.log(req.headers.authorization);
+    setTimeout(() => {
+      spinner.stopAndPersist({
+        symbol: '✓',
+        text: chalk.green('200 OK!'),
+      });
+      console.log(chalk.magenta(`New follower!`));
+      console.log(chalk.magenta(`purplestrobe executed on RGB`));
+      lights.rgbstrip.strobe('purple', streamcolour);
+      res.sendStatus(200);
+    }, 400);
+  }
+});
+
+app.get('*', (req, res, next) => {
+  res.sendStatus(401);
 });
 
 // POST Route for LED strip changes
@@ -296,6 +324,10 @@ app.get(`/song`, (req, res) => {
     console.log(data);
     res.send(data);
   });
+});
+
+app.post('*', (req, res, next) => {
+  res.sendStatus(401);
 });
 
 /* ROCKET LEAGUE STUFF:
@@ -476,7 +508,12 @@ async function streamelements() {
         async function sendIt(payload) {
           rlsocket.emit('payload', payload);
           let remote = await axios.get(
-            `${process.env.TWITCH_CALLBACK}/prizepool`
+            `${process.env.TWITCH_CALLBACK}/prizepool`,
+            {
+              headers: {
+                Authorization: process.env.AUTH_TOKEN,
+              },
+            }
           );
           oldstate = remote.data;
           newstate = {
@@ -491,6 +528,11 @@ async function streamelements() {
           console.log(newstate);
           const reply = await axios.post(
             `${process.env.TWITCH_CALLBACK}/prizepool`,
+            {
+              headers: {
+                Authorization: process.env.AUTH_TOKEN,
+              },
+            },
             newstate
           );
           if (reply.error) {
