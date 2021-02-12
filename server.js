@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const app = express();
 const port = 5000;
 const lights = require('./rgb');
@@ -219,13 +220,15 @@ function twitch() {
 // Middleware for logging and parseing of data
 app.use(volleyball);
 app.use(express.json());
+app.use(cors);
 
+// Allow CORS
 // Allow CORS
 app.use(function (req, res, next) {
   res.header('Access-Control-Allow-Origin', '*');
   res.header(
     'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept'
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization'
   );
   res.header('Authorization', process.env.AUTH_TOKEN);
   next();
