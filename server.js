@@ -22,6 +22,7 @@ const io2 = require('socket.io')(http);
 const atob = require('atob');
 
 const _ = require('lodash');
+const { setTimeout } = require('timers');
 
 // Timestamp console logs
 require('console-stamp')(console, { pattern: 'dd/mm/yyyy HH:MM:ss' });
@@ -228,7 +229,6 @@ app.use(function (req, res, next) {
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept, Authorization'
   );
-  res.header('Authorization', process.env.AUTH_TOKEN);
   next();
 });
 
@@ -348,6 +348,7 @@ app.post(`/prizeupdate`, (req, res) => {
     res.sendStatus(401);
   } else {
     let payload = req.body;
+    console.log(payload);
     rlsocket.emit('payload', payload);
   }
 });
@@ -423,79 +424,79 @@ async function streamelements() {
   tested using donation/tip system, seems like a different object structure comes through for
   an actual real, live donation though, might be similar with other functions. */
   sesocket.on('event:test', (data) => {
-    console.log(data.event);
-    // if (data.listener == 'tip-points') {
-    //   let payload;
-    //   switch (data.event.message.toLowerCase()) {
-    //     case '1':
-    //     case '1st':
-    //     case 'first':
-    //       payload = {
-    //         type: 'donation',
-    //         data: {
-    //           from: data.event.name,
-    //           place: 'first',
-    //           amount: data.event.amount,
-    //         },
-    //       };
-    //       sendIt(payload);
-    //       break;
-    //     case '2':
-    //     case '2nd':
-    //     case 'second':
-    //       payload = {
-    //         type: 'donation',
-    //         data: {
-    //           from: data.event.name,
-    //           place: 'second',
-    //           amount: data.event.amount,
-    //         },
-    //       };
-    //       sendIt(payload);
-    //       break;
-    //     case '3':
-    //     case '3rd':
-    //     case 'third':
-    //       payload = {
-    //         type: 'donation',
-    //         data: {
-    //           from: data.event.name,
-    //           place: 'third',
-    //           amount: data.event.amount,
-    //         },
-    //       };
-    //       sendIt(payload);
-    //       break;
-    //     default:
-    //       console.log(data.event);
-    //   }
-    //   async function sendIt(payload) {
-    //     rlsocket.emit('payload', payload);
-    //     let remote = await axios.get(
-    //       `${process.env.TWITCH_CALLBACK}/prizepool`
-    //     );
-    //     oldstate = remote.data;
-    //     newstate = {
-    //       data: {
-    //         ...oldstate['0'].prize,
-    //         [payload.data.place]: (
-    //           parseFloat(oldstate['0'].prize[payload.data.place]) +
-    //           payload.data.amount
-    //         ).toFixed(2),
-    //       },
-    //     };
-    //     console.log(newstate);
-    //     const reply = await axios.post(
-    //       `${process.env.TWITCH_CALLBACK}/prizepool`,
-    //       newstate
-    //     );
-    //     if (reply.error) {
-    //       console.log('error');
-    //     } else {
-    //       console.log('donation payment sent to DB prizepool');
-    //     }
-    //   }
-    // }
+    if (data.listener == 'tip-points') {
+      console.log(data.event);
+      let payload;
+      switch (data.event.message.toLowerCase()) {
+        case '1':
+        case '1st':
+        case 'first':
+          payload = {
+            data: {
+              type: 'donation',
+              from: data.event.name,
+              place: 'first',
+              amount: parseFloat(data.event.amount).toFixed(2),
+            },
+          };
+          sendIt(payload);
+          break;
+        case '2':
+        case '2nd':
+        case 'second':
+          payload = {
+            data: {
+              type: 'donation',
+              from: data.event.name,
+              place: 'second',
+              amount: parseFloat(data.event.amount).toFixed(2),
+            },
+          };
+          sendIt(payload);
+          break;
+        case '3':
+        case '3rd':
+        case 'third':
+          payload = {
+            data: {
+              type: 'donation',
+              from: data.event.name,
+              place: 'third',
+              amount: parseFloat(data.event.amount).toFixed(2),
+            },
+          };
+          sendIt(payload);
+          break;
+        default:
+          console.log(data.event);
+      }
+      async function sendIt(payload) {
+        rlsocket.emit('payload', payload);
+        let remote = await axios.get(
+          `${process.env.TWITCH_CALLBACK}/prizepool`,
+          {
+            headers: { Authorization: process.env.AUTH_TOKEN },
+          }
+        );
+        newstate = {
+          ...remote.data,
+          [payload.data.place]: (parseFloat(remote.data[payload.data.place]) + parseFloat(payload.data.amount)).toFixed(2) /* prettier-ignore */,
+        };
+        console.log(newstate);
+        const reply = await axios.post(
+          `${process.env.TWITCH_CALLBACK}/prizepool`,
+          newstate,
+          {
+            headers: { Authorization: process.env.AUTH_TOKEN },
+          }
+        );
+        if (reply.error) {
+          console.log('error');
+        } else {
+          console.log('donation payment sent to DB prizepool');
+        }
+      }
+    }
     // Structure as on JSON Schema
   });
 
@@ -510,11 +511,11 @@ async function streamelements() {
           case '1st':
           case 'first':
             payload = {
-              type: 'donation',
               data: {
+                type: 'donation',
                 from: data.data.username,
                 place: 'first',
-                amount: data.data.amount,
+                amount: parseFloat(data.data.amount).toFixed(2),
               },
             };
             sendIt(payload);
@@ -523,11 +524,11 @@ async function streamelements() {
           case '2nd':
           case 'second':
             payload = {
-              type: 'donation',
               data: {
+                type: 'donation',
                 from: data.data.username,
                 place: 'second',
-                amount: data.data.amount,
+                amount: parseFloat(data.data.amount).toFixed(2),
               },
             };
             sendIt(payload);
@@ -536,11 +537,11 @@ async function streamelements() {
           case '3rd':
           case 'third':
             payload = {
-              type: 'donation',
               data: {
+                type: 'donation',
                 from: data.data.username,
                 place: 'third',
-                amount: data.data.amount,
+                amount: parseFloat(data.data.amount).toFixed(2),
               },
             };
             sendIt(payload);
@@ -564,25 +565,19 @@ async function streamelements() {
               },
             }
           );
-          oldstate = remote.data;
           newstate = {
-            data: {
-              ...oldstate['0'].prize,
-              [payload.data.place]: (
-                parseFloat(oldstate['0'].prize[payload.data.place]) +
-                payload.data.amount
-              ).toFixed(2),
-            },
+            ...remote.data,
+            [payload.data.place]: (parseFloat(remote.data[payload.data.place]) + parseFloat(payload.data.amount)).toFixed(2) /* prettier-ignore */,
           };
           console.log(newstate);
           const reply = await axios.post(
             `${process.env.TWITCH_CALLBACK}/prizepool`,
+            newstate,
             {
               headers: {
                 Authorization: process.env.AUTH_TOKEN,
               },
-            },
-            newstate
+            }
           );
           if (reply.error) {
             console.log('error');
@@ -637,6 +632,7 @@ async function streamelements() {
 
 // Connect to SOS plugin in Rocket League
 function sos() {
+  console.log(chalk.blueBright('Rocket League SOS connection init'));
   let RlHost = 'ws://10.0.0.23:49122';
   let rlWsClientReady = false;
   let wsClient;
@@ -691,7 +687,11 @@ function sos() {
 
   // Start HTTP listen server for inbound connection
   http.listen(3002, () =>
-    console.log(`listening on: ${chalk.yellowBright('http://localhost:3002/')}`)
+    console.log(
+      `socket.io listening for ${chalk.redBright(
+        'CLIENT'
+      )} on: ${chalk.yellowBright('http://localhost:3002/')}`
+    )
   );
 
   // Function to create game stream for a given client ID, to allow sending specific data to specific client
@@ -703,22 +703,21 @@ function sos() {
 
     // Run initWS function to connect to Rocket League, on error, attempt a reconnect continuously every 10s till connected
     initWs(RlHost);
-    setInterval(function () {
-      if (wsClient.readyState === WebSocket.CLOSED) {
-        console.error(
-          chalk.redBright(
-            'Rocket League WebSocket Server Closed. Attempting to reconnect'
-          )
-        );
-        initWs(RlHost);
-      }
-    }, 10000);
 
     // Function to connect to, and emit messages from, Rocket League plugin (SOS)
     function initWs(RlHost) {
       wsClient = new WebSocket(RlHost);
       rlWsClientReady = false;
 
+      if (wsClient.readyState === WebSocket.CLOSED) {
+        setTimeout(() => {
+          console.error(
+            chalk.redBright('Rocket League WebSocket Server Closed!')
+          );
+          console.log(chalk.blue('Attempting reconnect in 10s'));
+          initWs(RlHost);
+        }, 10000);
+      }
       // Set ready state to true when connected to Rocket League plugin
       wsClient.onopen = function open() {
         rlWsClientReady = true;
@@ -740,9 +739,15 @@ function sos() {
       // Throw connection error in console. When this function is called, it is called recursively every 10s
       wsClient.onerror = function (err) {
         rlWsClientReady = false;
-        console.error(
-          `Error connecting to Rocket League. Is the plugin loaded into Rocket League? Run the command "plugin load sos" from the BakkesMod console to make sure`
-        );
+        setTimeout(() => {
+          console.error(
+            chalk.redBright(
+              `Error connecting to Rocket League. Is the plugin loaded into Rocket League? Run the command "plugin load sos" from the BakkesMod console to make sure`
+            )
+          );
+          console.log(chalk.blue('Attempting reconnect in 10s'));
+          initWs(RlHost);
+        }, 10000);
       };
       gameStreams[id] = {
         ws: wsClient,
@@ -889,11 +894,13 @@ function reactivelight(command, id) {
 
 // Start express server, open NGROK tunnel
 app.listen(port, () => {
-  chalk.green(
-    `Server up at ` +
-      chalk.whiteBright(`http://localhost:` + port + '\n✓ ') +
-      chalk.green(`NGROK tunnel `) +
-      chalk.whiteBright(`https://${process.env.NGROK_SUBD}.ngrok.io`)
+  console.log(
+    chalk.green(
+      `Server up at ` +
+        chalk.whiteBright(`http://localhost:` + port + ' ✓ ') +
+        chalk.green(`NGROK tunnel `) +
+        chalk.whiteBright(`https://${process.env.NGROK_SUBD}.ngrok.io ✓`)
+    )
   );
   console.log(chalk.greenBright(`Ready...`));
 });
