@@ -220,9 +220,7 @@ function twitch() {
 // Middleware for logging and parseing of data
 app.use(volleyball);
 app.use(express.json());
-app.use(cors);
 
-// Allow CORS
 // Allow CORS
 app.use(function (req, res, next) {
   res.header('Access-Control-Allow-Origin', '*');
@@ -268,65 +266,113 @@ app.get('*', (req, res, next) => {
 
 // POST Route for LED strip changes
 app.post('/lights/rgbstrip', (req, res) => {
-  const spinner = ora(`Processing request... \n`).start();
-  setTimeout(() => {
+  if (
+    req.headers.authorization !== process.env.AUTH_TOKEN ||
+    !req.headers.authorization
+  ) {
+    console.log(req.headers);
     spinner.stopAndPersist({
-      symbol: '✓',
-      text: chalk.green('200 OK!'),
+      symbol: 'X',
+      text: chalk.red('401 Unauthorised!'),
     });
-    console.log(
-      chalk.whiteBright(
-        `${Object.keys(req.body.data)}: ${Object.values(
-          req.body.data
-        )} received`
-      )
-    );
-    if (req.body.data.command == '!disco') {
-      lights.rgbstrip.strobe('white', streamcolour);
-    } else {
-      streamcolour = req.body.data.command;
-      lights.rgbstrip.trigger(req.body.data.command);
-    }
-    res.sendStatus(200);
-  }, 400);
+    res.sendStatus(401);
+  } else {
+    const spinner = ora(`Processing request... \n`).start();
+    setTimeout(() => {
+      spinner.stopAndPersist({
+        symbol: '✓',
+        text: chalk.green('200 OK!'),
+      });
+      console.log(
+        chalk.whiteBright(
+          `${Object.keys(req.body.data)}: ${Object.values(
+            req.body.data
+          )} received`
+        )
+      );
+      if (req.body.data.command == '!disco') {
+        lights.rgbstrip.strobe('white', streamcolour);
+      } else {
+        streamcolour = req.body.data.command;
+        lights.rgbstrip.trigger(req.body.data.command);
+      }
+      res.sendStatus(200);
+    }, 400);
+  }
 });
 
 // POST Route for adjusting Elgato keylight
 app.post('/lights/keylight', (req, res) => {
-  const spinner = ora(`Processing request... \n`).start();
-  setTimeout(() => {
+  if (
+    req.headers.authorization !== process.env.AUTH_TOKEN ||
+    !req.headers.authorization
+  ) {
+    console.log(req.headers);
     spinner.stopAndPersist({
-      symbol: '✓',
-      text: chalk.green('200 OK!'),
+      symbol: 'X',
+      text: chalk.red('401 Unauthorised!'),
     });
-    console.log(
-      chalk.whiteBright(
-        `${Object.keys(req.body.data)}: ${Object.values(
-          req.body.data
-        )} received`
-      )
-    );
-    lights.keylight.trigger(req.body.data.command);
-    res.sendStatus(200);
-  }, 400);
+    res.sendStatus(401);
+  } else {
+    const spinner = ora(`Processing request... \n`).start();
+    setTimeout(() => {
+      spinner.stopAndPersist({
+        symbol: '✓',
+        text: chalk.green('200 OK!'),
+      });
+      console.log(
+        chalk.whiteBright(
+          `${Object.keys(req.body.data)}: ${Object.values(
+            req.body.data
+          )} received`
+        )
+      );
+      lights.keylight.trigger(req.body.data.command);
+      res.sendStatus(200);
+    }, 400);
+  }
 });
 
 /* POST route for prize pool update, this is via manual !setprize command to twitch bot.
 Emits the data via RL socket connection. React app will receive updated prize pool amount and alter state accordingly */
 app.post(`/prizeupdate`, (req, res) => {
-  let payload = req.body;
-  rlsocket.emit('payload', payload);
+  if (
+    req.headers.authorization !== process.env.AUTH_TOKEN ||
+    !req.headers.authorization
+  ) {
+    console.log(req.headers);
+    spinner.stopAndPersist({
+      symbol: 'X',
+      text: chalk.red('401 Unauthorised!'),
+    });
+    res.sendStatus(401);
+  } else {
+    let payload = req.body;
+    rlsocket.emit('payload', payload);
+  }
 });
 
 // GET route for currently playing song from Spotify
 app.get(`/song`, (req, res) => {
-  let fs = require('fs'),
-    filename = 'song.txt';
-  fs.readFile(filename, 'utf8', function (err, data) {
-    if (err) throw err;
-    console.log(data);
-    res.send(data);
-  });
+  if (
+    req.headers.authorization !== process.env.AUTH_TOKEN ||
+    !req.headers.authorization
+  ) {
+    console.log(req.headers);
+    spinner.stopAndPersist({
+      symbol: 'X',
+      text: chalk.red('401 Unauthorised!'),
+    });
+    res.sendStatus(401);
+  } else {
+    let fs = require('fs'),
+      filename = 'song.txt';
+    fs.readFile(filename, 'utf8', function (err, data) {
+      if (err) throw err;
+      console.log(data);
+      res.send(data);
+    });
+  }
 });
 
 app.post('*', (req, res, next) => {
