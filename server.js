@@ -19,7 +19,6 @@ const io = require('socket.io-client');
 // Socket IO instance for SERVER
 const http = require('http').Server(app);
 const io2 = require('socket.io')(http);
-const atob = require('atob');
 
 const _ = require('lodash');
 const { setTimeout } = require('timers');
@@ -726,14 +725,9 @@ function sos() {
         );
       };
 
-      /* SOS Plugin is set to Base64 encode, on receipt of message, decode with atob and send through socket to 
-      connected ID's */
+      // SOS plugin removed Base64 requirement, refactored message send
       wsClient.onmessage = function (message) {
-        let sendMessage = message.data;
-        if (sendMessage.substr(0, 1) !== '{') {
-          sendMessage = atob(message.data);
-        }
-        io2.in(id).emit('update', sendMessage);
+        io2.in(id).emit('update', message.data);
       };
 
       // Throw connection error in console. When this function is called, it is called recursively every 10s
