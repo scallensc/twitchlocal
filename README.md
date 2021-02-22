@@ -1,4 +1,6 @@
-## Local RGB control server 
+## Local RGB control server
+
+![](localRGB.png)
 
 Express/NodeJS/Websocket server  
 
