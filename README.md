@@ -1,5 +1,8 @@
 ## Local RGB control server
 
+Video demo:  
+[![Twitchlocal](http://img.youtube.com/vi/grRSYG_uJaU/0.jpg)](http://www.youtube.com/watch?v=grRSYG_uJaU "Local RGB/Twitch server demo")
+
 ![](localRGB.png)
 
 Express/NodeJS/Websocket server  
