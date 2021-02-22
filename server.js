@@ -259,6 +259,29 @@ app.get('/newfollow', (req, res) => {
   }
 });
 
+// GET route for currently playing song from Spotify
+app.get(`/song`, (req, res) => {
+  if (
+    req.headers.authorization !== process.env.AUTH_TOKEN ||
+    !req.headers.authorization
+  ) {
+    console.log(req.headers);
+    spinner.stopAndPersist({
+      symbol: 'X',
+      text: chalk.red('401 Unauthorised!'),
+    });
+    res.sendStatus(401);
+  } else {
+    let fs = require('fs'),
+      filename = 'song.txt';
+    fs.readFile(filename, 'utf8', function (err, data) {
+      if (err) throw err;
+      console.log(data);
+      res.send(data);
+    });
+  }
+});
+
 app.get('*', (req, res, next) => {
   res.sendStatus(401);
 });
@@ -349,29 +372,6 @@ app.post(`/prizeupdate`, (req, res) => {
     let payload = req.body;
     console.log(payload);
     rlsocket.emit('payload', payload);
-  }
-});
-
-// GET route for currently playing song from Spotify
-app.get(`/song`, (req, res) => {
-  if (
-    req.headers.authorization !== process.env.AUTH_TOKEN ||
-    !req.headers.authorization
-  ) {
-    console.log(req.headers);
-    spinner.stopAndPersist({
-      symbol: 'X',
-      text: chalk.red('401 Unauthorised!'),
-    });
-    res.sendStatus(401);
-  } else {
-    let fs = require('fs'),
-      filename = 'song.txt';
-    fs.readFile(filename, 'utf8', function (err, data) {
-      if (err) throw err;
-      console.log(data);
-      res.send(data);
-    });
   }
 });
 
