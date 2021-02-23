@@ -310,7 +310,7 @@ app.post('/lights/rgbstrip', (req, res) => {
           )} received`
         )
       );
-      if (req.body.data.command == '!disco') {
+      if (req.body.data.command == 'disco') {
         lights.rgbstrip.strobe('white', streamcolour);
       } else {
         streamcolour = req.body.data.command;

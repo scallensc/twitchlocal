@@ -249,7 +249,7 @@ class Rgbstrip {
       const value = [255, 255, 255, 255];
       rgbstrip.setcolour(command, value);
     }
-    if (command === '!disco') {
+    if (command === '!disco' || command === 'disco') {
       rgbstrip.strobe('white');
     }
     if (command === 'purplestrobe') {
