@@ -1,6 +1,5 @@
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
 const app = express();
 const port = 5000;
 const lights = require('./rgb');
@@ -20,7 +19,6 @@ const io = require('socket.io-client');
 const http = require('http').Server(app);
 const io2 = require('socket.io')(http);
 
-const _ = require('lodash');
 const { setTimeout } = require('timers');
 
 // Timestamp console logs
