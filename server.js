@@ -669,20 +669,20 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('socket.io disconnection');
     if (socket._id && socket.watching) {
       endGameStream(socket._id);
     }
   });
 
-  // Emit tournament data to client on updateTournament message
+  // Emit tournament data to clients
   socket.on('updateTournament', (tournament) => {
-    socket.to(socket._id).emit('tournament', tournament);
+    socket.broadcast.emit('tournament', tournament);
   });
 
-  // Emit payload data only to REACTLOCAL client, for updating state of prize pool, etc
+  // Emit payload data to clients
   socket.on('payload', (payload) => {
-    socket.to('REACTLOCAL').emit('payload', payload);
+    // socket.to('REACTLOCAL').emit('payload', payload);
+    socket.broadcast.emit('payload', payload);
   });
 });
 
@@ -738,11 +738,11 @@ createGameStream = (id) => {
   };
 };
 
-endGameStream = (id, socket) => {
+endGameStream = (id) => {
   if (gameStreams[id]) {
     gameStreams[id].connected--;
     if (gameStreams[id].connected < 1) {
-      console.log(`Client ${id} disconnected, closed socket ${socket}`);
+      console.log(`Client ${id} disconnected`);
       gameStreams[id].ws.close();
       delete gameStreams[id];
     }
