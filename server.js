@@ -217,193 +217,6 @@ function twitch() {
   }, 3000);
 }
 
-// Middleware for logging and parseing of data
-app.use(volleyball);
-app.use(express.json());
-
-// Allow CORS
-app.use(function (req, res, next) {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header(
-    'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization'
-  );
-  next();
-});
-
-// GET Route for new twitch follower -> Twitch
-app.get('/newfollow', (req, res) => {
-  const spinner = ora(`Processing twitch request... \n`).start();
-  if (
-    req.headers.authorization !== process.env.AUTH_TOKEN ||
-    !req.headers.authorization
-  ) {
-    console.log(req.headers);
-    spinner.stopAndPersist({
-      symbol: 'X',
-      text: chalk.red('401 Unauthorised!'),
-    });
-    res.sendStatus(401);
-  } else {
-    console.log(req.headers.authorization);
-    setTimeout(() => {
-      spinner.stopAndPersist({
-        symbol: '✓',
-        text: chalk.green('200 OK!'),
-      });
-      console.log(chalk.magenta(`New follower!`));
-      console.log(chalk.magenta(`purplestrobe executed on RGB`));
-      lights.rgbstrip.strobe('purple', streamcolour);
-      res.sendStatus(200);
-    }, 400);
-  }
-});
-
-// GET route for currently playing song from Spotify
-app.get(`/song`, (req, res) => {
-  if (
-    req.headers.authorization !== process.env.AUTH_TOKEN ||
-    !req.headers.authorization
-  ) {
-    console.log(req.headers);
-    spinner.stopAndPersist({
-      symbol: 'X',
-      text: chalk.red('401 Unauthorised!'),
-    });
-    res.sendStatus(401);
-  } else {
-    let fs = require('fs'),
-      filename = 'song.txt';
-    fs.readFile(filename, 'utf8', function (err, data) {
-      if (err) throw err;
-      console.log(data);
-      res.send(data);
-    });
-  }
-});
-
-app.get('*', (req, res, next) => {
-  res.sendStatus(401);
-});
-
-// POST Route for LED strip changes
-app.post('/lights/rgbstrip', (req, res) => {
-  if (
-    req.headers.authorization !== process.env.AUTH_TOKEN ||
-    !req.headers.authorization
-  ) {
-    console.log(req.headers);
-    spinner.stopAndPersist({
-      symbol: 'X',
-      text: chalk.red('401 Unauthorised!'),
-    });
-    res.sendStatus(401);
-  } else {
-    const spinner = ora(`Processing request... \n`).start();
-    setTimeout(() => {
-      spinner.stopAndPersist({
-        symbol: '✓',
-        text: chalk.green('200 OK!'),
-      });
-      console.log(
-        chalk.whiteBright(
-          `${Object.keys(req.body.data)}: ${Object.values(
-            req.body.data
-          )} received`
-        )
-      );
-      if (req.body.data.command == 'disco') {
-        lights.rgbstrip.strobe('white', streamcolour);
-      } else {
-        streamcolour = req.body.data.command;
-        lights.rgbstrip.trigger(req.body.data.command);
-      }
-      res.sendStatus(200);
-    }, 400);
-  }
-});
-
-// POST Route for adjusting Elgato keylight
-app.post('/lights/keylight', (req, res) => {
-  if (
-    req.headers.authorization !== process.env.AUTH_TOKEN ||
-    !req.headers.authorization
-  ) {
-    console.log(req.headers);
-    spinner.stopAndPersist({
-      symbol: 'X',
-      text: chalk.red('401 Unauthorised!'),
-    });
-    res.sendStatus(401);
-  } else {
-    const spinner = ora(`Processing request... \n`).start();
-    setTimeout(() => {
-      spinner.stopAndPersist({
-        symbol: '✓',
-        text: chalk.green('200 OK!'),
-      });
-      console.log(
-        chalk.whiteBright(
-          `${Object.keys(req.body.data)}: ${Object.values(
-            req.body.data
-          )} received`
-        )
-      );
-      lights.keylight.trigger(req.body.data.command);
-      res.sendStatus(200);
-    }, 400);
-  }
-});
-
-/* POST route for prize pool update, this is via manual !setprize command to twitch bot.
-Emits the data via RL socket connection. React app will receive updated prize pool amount and alter state accordingly */
-app.post(`/prizeupdate`, (req, res) => {
-  if (
-    req.headers.authorization !== process.env.AUTH_TOKEN ||
-    !req.headers.authorization
-  ) {
-    console.log(req.headers);
-    spinner.stopAndPersist({
-      symbol: 'X',
-      text: chalk.red('401 Unauthorised!'),
-    });
-    res.sendStatus(401);
-  } else {
-    let payload = req.body;
-    console.log(payload);
-    rlsocket.emit('payload', payload);
-  }
-});
-
-app.post('*', (req, res, next) => {
-  res.sendStatus(401);
-});
-
-/* ROCKET LEAGUE STUFF:
-
-Variables to hold information about players and score
-Blue team data */
-let team0name = null;
-let team0score = 0;
-
-// Orange team data
-let team1name = null;
-let team1score = 0;
-
-// Player data
-let players = null;
-
-/* Variables to store current light colour info
-Colour based on current RL team score, default white */
-let currentcolour = 'white';
-
-// Colour based on Twitch channel point redemption or bot command, default purple
-let streamcolour = 'purple';
-
-// Activate default lighting on server start
-lights.keylight.light_on();
-lights.rgbstrip.trigger(streamcolour);
-
 // Connect to StreamElements via WS
 async function streamelements() {
   let JWT = process.env.STREAMELEMENTS_TOKEN;
@@ -431,8 +244,8 @@ async function streamelements() {
         case '1st':
         case 'first':
           payload = {
+            type: 'donation',
             data: {
-              type: 'donation',
               from: data.event.name,
               place: 'first',
               amount: parseFloat(data.event.amount).toFixed(2),
@@ -444,8 +257,8 @@ async function streamelements() {
         case '2nd':
         case 'second':
           payload = {
+            type: 'donation',
             data: {
-              type: 'donation',
               from: data.event.name,
               place: 'second',
               amount: parseFloat(data.event.amount).toFixed(2),
@@ -457,8 +270,8 @@ async function streamelements() {
         case '3rd':
         case 'third':
           payload = {
+            type: 'donation',
             data: {
-              type: 'donation',
               from: data.event.name,
               place: 'third',
               amount: parseFloat(data.event.amount).toFixed(2),
@@ -510,8 +323,8 @@ async function streamelements() {
           case '1st':
           case 'first':
             payload = {
+              type: 'donation',
               data: {
-                type: 'donation',
                 from: data.data.username,
                 place: 'first',
                 amount: parseFloat(data.data.amount).toFixed(2),
@@ -523,8 +336,8 @@ async function streamelements() {
           case '2nd':
           case 'second':
             payload = {
+              type: 'donation',
               data: {
-                type: 'donation',
                 from: data.data.username,
                 place: 'second',
                 amount: parseFloat(data.data.amount).toFixed(2),
@@ -536,8 +349,8 @@ async function streamelements() {
           case '3rd':
           case 'third':
             payload = {
+              type: 'donation',
               data: {
-                type: 'donation',
                 from: data.data.username,
                 place: 'third',
                 amount: parseFloat(data.data.amount).toFixed(2),
@@ -628,6 +441,204 @@ async function streamelements() {
     );
   }
 }
+
+// Middleware for logging and parseing of data
+app.use(volleyball);
+app.use(express.json());
+
+// Allow CORS
+app.use(function (req, res, next) {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+  );
+  next();
+});
+
+const responses = [
+  `¯\\_(ツ)_/¯`,
+  `ಠ_ಠ`,
+  `¯\\(°_o)/¯`,
+  `¯\\_( ͡° ͜ʖ ͡°)_/¯`,
+  `[̲̅$̲̅(ツ)$̲̅]`,
+  `ᕦ(ツ)ᕤ`,
+];
+
+// GET Route for new twitch follower -> Twitch
+app.get('/newfollow', (req, res) => {
+  const spinner = ora(`Processing twitch request... \n`).start();
+  if (
+    req.headers.authorization !== process.env.AUTH_TOKEN ||
+    !req.headers.authorization
+  ) {
+    console.log(req.headers);
+    spinner.stopAndPersist({
+      symbol: 'X',
+      text: chalk.red('401 Unauthorised!'),
+    });
+    res.send(responses[Math.floor(Math.random() * responses.length)]);
+  } else {
+    console.log(req.headers.authorization);
+    setTimeout(() => {
+      spinner.stopAndPersist({
+        symbol: '✓',
+        text: chalk.green('200 OK!'),
+      });
+      console.log(chalk.magenta(`New follower!`));
+      console.log(chalk.magenta(`purplestrobe executed on RGB`));
+      res.send(responses[Math.floor(Math.random() * responses.length)]);
+    }, 400);
+  }
+});
+
+// GET route for currently playing song from Spotify
+app.get(`/song`, (req, res) => {
+  if (
+    req.headers.authorization !== process.env.AUTH_TOKEN ||
+    !req.headers.authorization
+  ) {
+    console.log(req.headers);
+    spinner.stopAndPersist({
+      symbol: 'X',
+      text: chalk.red('401 Unauthorised!'),
+    });
+    res.send(responses[Math.floor(Math.random() * responses.length)]);
+  } else {
+    let fs = require('fs'),
+      filename = 'song.txt';
+    fs.readFile(filename, 'utf8', function (err, data) {
+      if (err) throw err;
+      console.log(data);
+      res.send(data);
+    });
+  }
+});
+
+app.get('*', (req, res, next) => {
+  res.send(responses[Math.floor(Math.random() * responses.length)]);
+  console.log(chalk.red('401 Unauthorized!'));
+});
+
+// POST Route for LED strip changes
+app.post('/lights/rgbstrip', (req, res) => {
+  if (
+    req.headers.authorization !== process.env.AUTH_TOKEN ||
+    !req.headers.authorization
+  ) {
+    console.log(req.headers);
+    spinner.stopAndPersist({
+      symbol: 'X',
+      text: chalk.red('401 Unauthorised!'),
+    });
+    res.send(responses[Math.floor(Math.random() * responses.length)]);
+  } else {
+    const spinner = ora(`Processing request... \n`).start();
+    setTimeout(() => {
+      spinner.stopAndPersist({
+        symbol: '✓',
+        text: chalk.green('200 OK!'),
+      });
+      console.log(
+        chalk.whiteBright(
+          `${Object.keys(req.body.data)}: ${Object.values(
+            req.body.data
+          )} received`
+        )
+      );
+      if (req.body.data.command == 'disco') {
+        lights.rgbstrip.strobe('white', streamcolour);
+      } else {
+        streamcolour = req.body.data.command;
+        lights.rgbstrip.trigger(req.body.data.command);
+      }
+      res.send(responses[Math.floor(Math.random() * responses.length)]);
+    }, 400);
+  }
+});
+
+// POST Route for adjusting Elgato keylight
+app.post('/lights/keylight', (req, res) => {
+  if (
+    req.headers.authorization !== process.env.AUTH_TOKEN ||
+    !req.headers.authorization
+  ) {
+    console.log(req.headers);
+    spinner.stopAndPersist({
+      symbol: 'X',
+      text: chalk.red('401 Unauthorised!'),
+    });
+    res.send(responses[Math.floor(Math.random() * responses.length)]);
+  } else {
+    const spinner = ora(`Processing request... \n`).start();
+    setTimeout(() => {
+      spinner.stopAndPersist({
+        symbol: '✓',
+        text: chalk.green('200 OK!'),
+      });
+      console.log(
+        chalk.whiteBright(
+          `${Object.keys(req.body.data)}: ${Object.values(
+            req.body.data
+          )} received`
+        )
+      );
+      lights.keylight.trigger(req.body.data.command);
+      res.send(responses[Math.floor(Math.random() * responses.length)]);
+    }, 400);
+  }
+});
+
+/* POST route for prize pool update, this is via manual !setprize command to twitch bot.
+Emits the data via RL socket connection. React app will receive updated prize pool amount and alter state accordingly */
+app.post(`/prizeupdate`, (req, res) => {
+  if (
+    req.headers.authorization !== process.env.AUTH_TOKEN ||
+    !req.headers.authorization
+  ) {
+    console.log(req.headers);
+    spinner.stopAndPersist({
+      symbol: 'X',
+      text: chalk.red('401 Unauthorised!'),
+    });
+    res.send(responses[Math.floor(Math.random() * responses.length)]);
+  } else {
+    let payload = { type: 'prizeupdate', data: { ...req.body } };
+    console.log(payload);
+    rlsocket.emit('payload', payload);
+    res.send(responses[Math.floor(Math.random() * responses.length)]);
+  }
+});
+
+app.post('*', (req, res, next) => {
+  res.send(responses[Math.floor(Math.random() * responses.length)]);
+  console.log(chalk.red('401 Unauthorized!'));
+});
+
+/* ROCKET LEAGUE STUFF:
+
+Variables to hold information about players and score
+Blue team data */
+let team0name = null;
+let team0score = 0;
+
+// Orange team data
+let team1name = null;
+let team1score = 0;
+
+// Player data
+let players = null;
+
+/* Variables to store current light colour info
+Colour based on current RL team score, default white */
+let currentcolour = 'white';
+
+// Colour based on Twitch channel point redemption or bot command, default purple
+let streamcolour = 'purple';
+
+// Activate default lighting on server start
+lights.keylight.light_on();
+lights.rgbstrip.trigger(streamcolour);
 
 let gameStreams = {};
 let rlHost = 'http://localhost:49122';
