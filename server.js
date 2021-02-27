@@ -691,7 +691,6 @@ http.listen(3002, () =>
 
 const initWsClient = () => {
   wsClient = new WebSocket(rlHost);
-  rlWsClientReady = false;
 
   wsClient.onclose = function () {
     delete wsClient;
@@ -703,7 +702,6 @@ const initWsClient = () => {
   };
 
   wsClient.onopen = function open() {
-    rlWsClientReady = true;
     console.log(`Connected to Rocket League on ${rlHost}`);
   };
 
@@ -719,7 +717,6 @@ const initWsClient = () => {
       'Error connecting to SOS, is the plugin running? Try plugin load SOS from BakkesMod console to be sure'
     );
     wsClient.close();
-    rlWsClientReady = false;
   };
 };
 initWsClient();
