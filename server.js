@@ -12,12 +12,14 @@ const WebSocket = require('ws');
 
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
 
-// Socket IO instance for CONNECTIONS
-const io = require('socket.io-client');
+// Socket IO things
+// Streamelements
+const se_io = require('socket.io-client');
+const rl_io = require('socket.io-client');
 
-// Socket IO instance for SERVER
+// SOS relay
 const http = require('http').Server(app);
-const io2 = require('socket.io')(http);
+const io = require('socket.io')(http);
 
 const { setTimeout } = require('timers');
 
@@ -405,7 +407,7 @@ lights.rgbstrip.trigger(streamcolour);
 // Connect to StreamElements via WS
 async function streamelements() {
   let JWT = process.env.STREAMELEMENTS_TOKEN;
-  const sesocket = io('https://realtime.streamelements.com', {
+  const sesocket = se_io('https://realtime.streamelements.com', {
     transports: ['websocket'],
   });
   // Socket connected
@@ -627,143 +629,117 @@ async function streamelements() {
   }
 }
 
-// Connect to SOS plugin in Rocket League
-function sos() {
-  console.log(chalk.blueBright('Rocket League SOS connection init'));
-  let RlHost = 'ws://10.0.0.23:49122';
-  let rlWsClientReady = false;
-  let wsClient;
-  let gameStreams = {};
+let gameStreams = {};
+let rlHost = 'http://localhost:49122';
+let socketId;
 
-  // On receipt of connection message, declare _id and watching
-  io2.on('connection', (socket) => {
-    socket._id;
-    socket.watching;
+io.on('connection', (socket) => {
+  socket._id;
+  socket.watching;
 
-    // Assign socket ID to client on client join message
-    socket.on('join', (id) => {
-      if (socket._id) {
-        console.log(socket._id);
-      }
-      if (!!socket._id) {
-        socket.leave(socket._id);
-        endGameStream(socket._id);
-        console.log(`User: ${chalk.blueBright(id)} left`);
-      }
-      socket.join(id);
-      socket._id = id;
-      console.log(`User: ${chalk.blueBright(id)} watching`);
-    });
-
-    // Run createGameStream function on client watchGame message
-    socket.on('watchGame', () => {
-      if (!socket.watching) {
-        createGameStream(socket._id);
-        socket.watching = true;
-      }
-    });
-
-    // Run endGameStream function on client disconnect message
-    socket.on('disconnect', () => {
-      console.log(chalk.red('socket.io disconnection'));
-      if (socket._id && socket.watching) {
-        endGameStream(socket._id);
-      }
-    });
-
-    // Emit tournament data to client on updateTournament message
-    socket.on('updateTournament', (tournament) => {
-      socket.to(socket._id).emit('tournament', tournament);
-    });
-
-    // Emit payload data only to REACTLOCAL client, for updating state of prize pool, etc
-    socket.on('payload', (payload) => {
-      socket.to('REACTLOCAL').emit('payload', payload);
-    });
+  socket.on('join', (id) => {
+    socketId = id;
+    if (!!socket._id) {
+      socket.leave(socket._id);
+      endGameStream(socket._id);
+      console.log('Client ' + id + ' left');
+    }
+    socket.join(id);
+    socket._id = id;
+    console.log('Client ' + id + ' connected');
   });
 
-  // Start HTTP listen server for inbound connection
-  http.listen(3002, () =>
-    console.log(
-      `socket.io listening for ${chalk.redBright(
-        'CLIENT'
-      )} on: ${chalk.yellowBright('http://localhost:3002/')}`
-    )
-  );
-
-  // Function to create game stream for a given client ID, to allow sending specific data to specific client
-  createGameStream = (id) => {
-    if (gameStreams[id]) {
-      gameStreams[id].connected++;
-      return gameStreams[id];
+  socket.on('watchGame', () => {
+    if (!socket.watching) {
+      createGameStream(socket._id);
+      socket.watching = true;
+      console.log(`Client ${socket._id} watching socket ${socket.id}!`);
     }
+  });
 
-    // Run initWS function to connect to Rocket League, on error, attempt a reconnect continuously every 10s till connected
-    initWs(RlHost);
-
-    // Function to connect to, and emit messages from, Rocket League plugin (SOS)
-    function initWs(RlHost) {
-      wsClient = new WebSocket(RlHost);
-      rlWsClientReady = false;
-
-      if (wsClient.readyState === WebSocket.CLOSED) {
-        setTimeout(() => {
-          console.error(
-            chalk.redBright('Rocket League WebSocket Server Closed!')
-          );
-          console.log(chalk.blue('Attempting reconnect in 10s'));
-          initWs(RlHost);
-        }, 10000);
-      }
-      // Set ready state to true when connected to Rocket League plugin
-      wsClient.onopen = function open() {
-        rlWsClientReady = true;
-        console.log(
-          `Connected to Rocket League on ${chalk.yellowBright(RlHost)}`
-        );
-      };
-
-      // SOS plugin removed Base64 requirement, refactored message send
-      wsClient.onmessage = function (message) {
-        io2.in(id).emit('update', message.data);
-      };
-
-      // Throw connection error in console. When this function is called, it is called recursively every 10s
-      wsClient.onerror = function (err) {
-        rlWsClientReady = false;
-        setTimeout(() => {
-          console.error(
-            chalk.redBright(
-              `Error connecting to Rocket League. Is the plugin loaded into Rocket League? Run the command "plugin load sos" from the BakkesMod console to make sure`
-            )
-          );
-          console.log(chalk.blue('Attempting reconnect in 10s'));
-          initWs(RlHost);
-        }, 10000);
-      };
-      gameStreams[id] = {
-        ws: wsClient,
-        connected: 1,
-      };
+  socket.on('disconnect', () => {
+    console.log('socket.io disconnection');
+    if (socket._id && socket.watching) {
+      endGameStream(socket._id);
     }
+  });
+
+  // Emit tournament data to client on updateTournament message
+  socket.on('updateTournament', (tournament) => {
+    socket.to(socket._id).emit('tournament', tournament);
+  });
+
+  // Emit payload data only to REACTLOCAL client, for updating state of prize pool, etc
+  socket.on('payload', (payload) => {
+    socket.to('REACTLOCAL').emit('payload', payload);
+  });
+});
+
+http.listen(3002, () =>
+  console.log('socket.io listening for Client on http://localhost:3002/')
+);
+
+let wsClient;
+
+const initWs = () => {
+  wsClient = new WebSocket(rlHost);
+  rlWsClientReady = false;
+
+  wsClient.onclose = function () {
+    delete wsClient;
+    setTimeout(() => {
+      console.error('Rocket League WebSocket Server Closed!');
+      console.log('Attempting reconnection...');
+      initWs(rlHost);
+    }, 10000);
   };
 
-  // Destroy socket when client leaves
-  endGameStream = (id) => {
-    if (gameStreams[id]) {
-      gameStreams[id].connected--;
-      if (gameStreams[id].connected < 1) {
-        console.log('User left, closing websocket');
-        gameStreams[id].ws.close();
-        delete gameStreams[id];
-        rlWsClientReady = false;
-      }
-    }
+  wsClient.onopen = function open() {
+    rlWsClientReady = true;
+    console.log(`Connected to Rocket League on ${rlHost}`);
   };
-}
+
+  wsClient.onmessage = function (message) {
+    let data = JSON.parse(message.data);
+    io.in(socketId).emit('update', data);
+    // Log WS messages here
+    // console.info(data.event);
+  };
+
+  wsClient.onerror = function (err) {
+    console.error(
+      'Error connecting to SOS, is the plugin running? Try plugin load SOS from BakkesMod console to be sure'
+    );
+    wsClient.close();
+    rlWsClientReady = false;
+  };
+};
+initWs();
+
+createGameStream = (id) => {
+  if (gameStreams[id]) {
+    gameStreams[id].connected++;
+    return gameStreams[id];
+  }
+  gameStreams[id] = {
+    ws: wsClient,
+    connected: 1,
+  };
+};
+
+endGameStream = (id, socket) => {
+  if (gameStreams[id]) {
+    gameStreams[id].connected--;
+    if (gameStreams[id].connected < 1) {
+      console.log(`Client ${id} disconnected, closed socket ${socket}`);
+      gameStreams[id].ws.close();
+      delete gameStreams[id];
+    }
+  }
+};
 
 // Declare this socket outside of function body to allow
-const rlsocket = io('ws://localhost:3002');
+const rlsocket = rl_io('ws://localhost:3002');
 
 // Connect back to the SOS relay on this server to receive Rocket League game data, control lights from certain events, etc.
 function rocketleague() {
@@ -771,8 +747,7 @@ function rocketleague() {
   rlsocket.emit('watchGame');
 
   // Logic for each game tick update event
-  rlsocket.on('update', (response) => {
-    let data = JSON.parse(response);
+  rlsocket.on('update', (data) => {
     let event = data.event;
     let stats = data.data;
 
@@ -900,8 +875,7 @@ app.listen(port, () => {
 twitch(); // -> Call connection to Twitch
 
 // Initialise websocket connection
-sos(); // -> Call SOS socket server logic
-rocketleague(); // -> Call connection to SOS socket
+rocketleague();
 streamelements(); // -> Call connection to StreamElements
 
 // Kill server, make sure NGROK shuts down on SIGINT
