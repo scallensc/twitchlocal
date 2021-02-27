@@ -297,10 +297,19 @@ async function streamelements() {
           `${process.env.TWITCH_CALLBACK}/prizepool`,
           newstate,
           {
+            headers: {
+              Authorization: process.env.AUTH_TOKEN,
+            },
+          }
+        );
+        const bot = await axios.post(
+          `${process.env.TWITCH_CALLBACK}/donation`,
+          payload,
+          {
             headers: { Authorization: process.env.AUTH_TOKEN },
           }
         );
-        if (reply.error) {
+        if (reply.error || bot.error) {
           console.log('error');
         } else {
           console.log('donation payment sent to DB prizepool');
@@ -389,7 +398,14 @@ async function streamelements() {
               },
             }
           );
-          if (reply.error) {
+          const bot = await axios.post(
+            `${process.env.TWITCH_CALLBACK}/donation`,
+            payload,
+            {
+              headers: { Authorization: process.env.AUTH_TOKEN },
+            }
+          );
+          if (reply.error || bot.error) {
             console.log('error');
           } else {
             console.log('donation payment sent to DB prizepool');
@@ -689,6 +705,7 @@ http.listen(3002, () =>
   console.log('socket.io listening for Client on http://localhost:3002/')
 );
 
+let wsClient;
 const initWsClient = () => {
   wsClient = new WebSocket(rlHost);
 
