@@ -642,7 +642,6 @@ lights.rgbstrip.trigger(streamcolour);
 
 let gameStreams = {};
 let rlHost = 'http://localhost:49122';
-let socketId;
 
 io.on('connection', (socket) => {
   socket._id;
@@ -651,20 +650,22 @@ io.on('connection', (socket) => {
   socket.on('join', (id) => {
     socketId = id;
     if (!!socket._id) {
-      socket.leave(socket._id);
+      socket.leave('game');
       endGameStream(socket._id);
-      console.log('Client ' + id + ' left');
+      console.log(`Client ${id} left`);
     }
-    socket.join(id);
+    socket.join('game');
     socket._id = id;
-    console.log('Client ' + id + ' connected');
+    console.log(`Client ${id} connected, ID: ${socket.id}`);
   });
 
   socket.on('watchGame', () => {
     if (!socket.watching) {
       createGameStream(socket._id);
       socket.watching = true;
-      console.log(`Client ${socket._id} watching socket ${socket.id}!`);
+      console.log(
+        `Client ${socket._id} in rooms: ${JSON.stringify(socket.rooms)}`
+      );
     }
   });
 
@@ -676,13 +677,13 @@ io.on('connection', (socket) => {
 
   // Emit tournament data to clients
   socket.on('updateTournament', (tournament) => {
-    socket.broadcast.emit('tournament', tournament);
+    socket.to('game').emit('tournament', tournament);
   });
 
   // Emit payload data to clients
   socket.on('payload', (payload) => {
     // socket.to('REACTLOCAL').emit('payload', payload);
-    socket.broadcast.emit('payload', payload);
+    socket.to('game').emit('payload', payload);
   });
 });
 
@@ -712,7 +713,7 @@ const initWs = () => {
 
   wsClient.onmessage = function (message) {
     let data = JSON.parse(message.data);
-    io.in(socketId).emit('update', data);
+    io.in('game').emit('update', data);
     // Log WS messages here
     // console.info(data.event);
   };
