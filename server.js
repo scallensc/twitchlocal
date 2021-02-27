@@ -12,10 +12,8 @@ const WebSocket = require('ws');
 
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
 
-// Socket IO things
-// Streamelements
-const se_io = require('socket.io-client');
-const rl_io = require('socket.io-client');
+// Socket IO client
+const io_client = require('socket.io-client');
 
 // SOS relay
 const http = require('http').Server(app);
@@ -220,7 +218,7 @@ function twitch() {
 // Connect to StreamElements via WS
 async function streamelements() {
   let JWT = process.env.STREAMELEMENTS_TOKEN;
-  const sesocket = se_io('https://realtime.streamelements.com', {
+  const sesocket = io_client('https://realtime.streamelements.com', {
     transports: ['websocket'],
   });
   // Socket connected
@@ -691,9 +689,7 @@ http.listen(3002, () =>
   console.log('socket.io listening for Client on http://localhost:3002/')
 );
 
-let wsClient;
-
-const initWs = () => {
+const initWsClient = () => {
   wsClient = new WebSocket(rlHost);
   rlWsClientReady = false;
 
@@ -702,7 +698,7 @@ const initWs = () => {
     setTimeout(() => {
       console.error('Rocket League WebSocket Server Closed!');
       console.log('Attempting reconnection...');
-      initWs(rlHost);
+      initWsClient(rlHost);
     }, 10000);
   };
 
@@ -726,7 +722,7 @@ const initWs = () => {
     rlWsClientReady = false;
   };
 };
-initWs();
+initWsClient();
 
 createGameStream = (id) => {
   if (gameStreams[id]) {
@@ -750,8 +746,8 @@ endGameStream = (id) => {
   }
 };
 
-// Declare this socket outside of function body to allow
-const rlsocket = rl_io('ws://localhost:3002');
+// Declare this socket outside of function body to allow other functions to emit messages
+const rlsocket = io_client('ws://localhost:3002');
 
 // Connect back to the SOS relay on this server to receive Rocket League game data, control lights from certain events, etc.
 function rocketleague() {
