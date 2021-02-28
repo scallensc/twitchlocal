@@ -492,6 +492,19 @@ const responses = [
   `ᕦ(ツ)ᕤ`,
 ];
 
+// Routing for serving up React app as overlay from build folder
+const path = require('path');
+app.use(express.static('build'));
+app.use(express.static('src'));
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
+});
+
+app.get('/src/styles.scss', (req, res) => {
+  res.sendFile(path.join(__dirname, 'src', 'styles.scss'));
+});
+
 // GET Route for new twitch follower -> Twitch
 app.get('/newfollow', (req, res) => {
   const spinner = ora(`Processing twitch request... \n`).start();

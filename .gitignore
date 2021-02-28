@@ -1,3 +1,5 @@
+src
+build
 .env
 node_modules
 followers.txt
