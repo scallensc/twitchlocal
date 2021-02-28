@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
-const app = express();
-const port = 5000;
+const app = require('express')();
+const http = require('http').createServer(app);
 const lights = require('./rgb');
 const ngrok = require('ngrok');
 const volleyball = require('volleyball');
@@ -11,13 +11,26 @@ const axios = require('axios');
 const WebSocket = require('ws');
 
 const AUTH_TOKEN = process.env.AUTH_TOKEN;
+const port = 5000;
+
+// Init server
+const server = http.listen(port, () => {
+  console.log(
+    chalk.green(
+      `Server listening at ` +
+        chalk.whiteBright(`http://localhost:` + port + ' ✓ ') +
+        chalk.green(`NGROK tunnel `) +
+        chalk.whiteBright(`https://${process.env.NGROK_SUBD}.ngrok.io ✓`)
+    )
+  );
+  console.log(chalk.greenBright(`Ready...`));
+});
 
 // Socket IO client
 const io_client = require('socket.io-client');
 
-// SOS relay
-const http = require('http').Server(app);
-const io = require('socket.io')(http);
+// Init socket.io, pass server for connection
+const io = require('socket.io')(server);
 
 const { setTimeout } = require('timers');
 
@@ -701,10 +714,6 @@ io.on('connection', (socket) => {
   });
 });
 
-http.listen(3002, () =>
-  console.log('socket.io listening for Client on http://localhost:3002/')
-);
-
 let wsClient;
 const initWsClient = () => {
   wsClient = new WebSocket(rlHost);
@@ -761,7 +770,7 @@ endGameStream = (id) => {
 };
 
 // Declare this socket outside of function body to allow other functions to emit messages
-const rlsocket = io_client('ws://localhost:3002');
+const rlsocket = io_client('ws://localhost:5000');
 
 // Connect back to the SOS relay on this server to receive Rocket League game data, control lights from certain events, etc.
 function rocketleague() {
@@ -880,19 +889,6 @@ function reactivelight(command, id) {
     }
   }
 }
-
-// Start express server, open NGROK tunnel
-app.listen(port, () => {
-  console.log(
-    chalk.green(
-      `Server up at ` +
-        chalk.whiteBright(`http://localhost:` + port + ' ✓ ') +
-        chalk.green(`NGROK tunnel `) +
-        chalk.whiteBright(`https://${process.env.NGROK_SUBD}.ngrok.io ✓`)
-    )
-  );
-  console.log(chalk.greenBright(`Ready...`));
-});
 
 twitch(); // -> Call connection to Twitch
 
