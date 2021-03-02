@@ -682,6 +682,7 @@ lights.rgbstrip.trigger(streamcolour);
 
 let gameStreams = {};
 let rlHost = 'http://localhost:49122';
+let RCONHost = 'http://localhost:9002';
 
 io.on('connection', (socket) => {
   socket._id;
@@ -724,6 +725,12 @@ io.on('connection', (socket) => {
   socket.on('payload', (payload) => {
     // socket.to('REACTLOCAL').emit('payload', payload);
     socket.to('game').emit('payload', payload);
+
+    // Check for payloads matching type RCON, send RCON command/value contained in payload
+    if (payload?.type === 'RCON') {
+      console.log(payload);
+      RCONClient.send(`${payload.data.command} ${payload.data.value}`);
+    }
   });
 });
 
@@ -741,7 +748,9 @@ const initWsClient = () => {
   };
 
   wsClient.onopen = function open() {
-    console.log(`Connected to Rocket League on ${rlHost}`);
+    console.log(
+      `Connected to ${chalk.yellow('Rocket League')} on ${chalk.blue(rlHost)}`
+    );
   };
 
   wsClient.onmessage = function (message) {
@@ -759,6 +768,38 @@ const initWsClient = () => {
   };
 };
 initWsClient();
+
+let RCONClient;
+const initRCONClient = () => {
+  RCONClient = new WebSocket(RCONHost);
+
+  RCONClient.onclose = function () {
+    delete RCONClient;
+    setTimeout(() => {
+      console.error('Rocket League RCON connection Closed!');
+      console.log('Attempting reconnection...');
+      initWsClient(rlHost);
+    }, 10000);
+  };
+
+  RCONClient.onopen = function open() {
+    console.log(
+      `Connected to ${chalk.yellow('RCON')} on ${chalk.blue(RCONHost)}`
+    );
+    RCONClient.send('rcon_password ' + 'password');
+    RCONClient.send('rcon_refresh_allowed');
+  };
+
+  RCONClient.onmessage = function (message) {
+    console.log(message.data);
+  };
+
+  RCONClient.onerror = function (err) {
+    console.error('Error connecting to RCON!');
+    RCONClient.close();
+  };
+};
+initRCONClient();
 
 createGameStream = (id) => {
   if (gameStreams[id]) {
