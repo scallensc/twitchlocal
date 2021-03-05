@@ -728,8 +728,8 @@ io.on('connection', (socket) => {
 
     // Check for payloads matching type RCON, send RCON command/value contained in payload
     if (payload?.type === 'RCON') {
-      console.log(payload);
-      RCONClient.send(`${payload.data.command} ${payload.data.value}`);
+      console.log(`${payload.data.command}`);
+      RCONClient.send(`${payload.data.command}`);
     }
   });
 });
@@ -737,13 +737,11 @@ io.on('connection', (socket) => {
 let wsClient;
 const initWsClient = () => {
   wsClient = new WebSocket(rlHost);
-
   wsClient.onclose = function () {
-    delete wsClient;
     setTimeout(() => {
       console.error('Rocket League WebSocket Server Closed!');
       console.log('Attempting reconnection...');
-      initWsClient(rlHost);
+      initWsClient();
     }, 10000);
   };
 
@@ -772,13 +770,11 @@ initWsClient();
 let RCONClient;
 const initRCONClient = () => {
   RCONClient = new WebSocket(RCONHost);
-
   RCONClient.onclose = function () {
-    delete RCONClient;
     setTimeout(() => {
       console.error('Rocket League RCON connection Closed!');
       console.log('Attempting reconnection...');
-      initWsClient(rlHost);
+      initRCONClient();
     }, 10000);
   };
 
