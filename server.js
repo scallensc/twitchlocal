@@ -725,12 +725,16 @@ io.on('connection', (socket) => {
   socket.on('payload', (payload) => {
     // socket.to('REACTLOCAL').emit('payload', payload);
     socket.to('game').emit('payload', payload);
+  });
 
-    // Check for payloads matching type RCON, send RCON command/value contained in payload
-    if (payload?.type === 'RCON') {
-      console.log(`${payload.data.command}`);
-      RCONClient.send(`${payload.data.command}`);
-    }
+  // Emit payload data to clients
+  socket.on('RCON', (payload) => {
+    console.log(`${payload.data.command}`);
+    RCONClient.send(`${payload.data.command}`);
+  });
+
+  socket.on('error', function (err) {
+    console.error(chalk.red(err.message));
   });
 });
 
@@ -760,10 +764,17 @@ const initWsClient = () => {
 
   wsClient.onerror = function (err) {
     console.error(
-      'Error connecting to SOS, is the plugin running? Try plugin load SOS from BakkesMod console to be sure'
+      chalk.red(
+        'Error connecting to SOS, is the plugin running? Try plugin load SOS from BakkesMod console to be sure'
+      )
     );
     wsClient.close();
   };
+
+  wsClient.on('error', function (err) {
+    console.error(chalk.red(err.message));
+    wsClient.close();
+  });
 };
 initWsClient();
 
@@ -791,9 +802,14 @@ const initRCONClient = () => {
   };
 
   RCONClient.onerror = function (err) {
-    console.error('Error connecting to RCON!');
+    console.error(chalk.red('Error connecting to RCON!'));
     RCONClient.close();
   };
+
+  RCONClient.on('error', function (err) {
+    console.error(chalk.red(err.message));
+    RCONClient.close;
+  });
 };
 initRCONClient();
 
